@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'ingestor'
+    static_configs:
+      - targets: ['ingestor:8081']
+    metrics_path: /metrics
+
+  - job_name: 'analyzer'
+    static_configs:
+      - targets: ['analyzer:8082']
+    metrics_path: /metrics
+
+  - job_name: 'alert-engine'
+    static_configs:
+      - targets: ['alert-engine:8083']
+    metrics_path: /metrics
+
+  - job_name: 'geo-index'
+    static_configs:
+      - targets: ['geo-index:8084']
+    metrics_path: /metrics
+
+  - job_name: 'report'
+    static_configs:
+      - targets: ['report:8085']
+    metrics_path: /metrics
+
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']

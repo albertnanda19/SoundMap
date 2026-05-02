@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package geo.v1;
+
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/soundmap/soundmap/gen/go/geo/v1;geov1";
+
+message HexCell {
+  string h3_index = 1;
+  int32 resolution = 2;
+  double center_lat = 3;
+  double center_lng = 4;
+  double avg_decibel = 5;
+  double max_decibel = 6;
+  int32 sensor_count = 7;
+  common.v1.NoiseCategory dominant_category = 8;
+  common.v1.HealthRiskLevel risk_level = 9;
+  google.protobuf.Timestamp last_updated = 10;
+}
+
+message QueryHotspotsRequest {
+  common.v1.GeoLocation center = 1;
+  double radius_km = 2;
+  double min_decibel = 3;
+  int32 resolution = 4;
+  int32 limit = 5;
+}
+
+message QueryHotspotsResponse {
+  repeated HexCell cells = 1;
+  int32 total_sensors = 2;
+  int64 query_time_ms = 3;
+}
+
+message GetHexCellStatsRequest {
+  string h3_index = 1;
+  int32 time_range_hours = 2;
+}
+
+message GetHexCellStatsResponse {
+  HexCell cell = 1;
+  map<string, double> hourly_averages = 2;
+}
+
+message StreamCellUpdatesRequest {
+  repeated string h3_indexes = 1;
+  int32 resolution = 2;
+}
+
+message CellUpdate {
+  HexCell cell = 1;
+  string event_type = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+service GeoIndexService {
+  rpc QueryHotspots(QueryHotspotsRequest) returns (QueryHotspotsResponse);
+  rpc GetHexCellStats(GetHexCellStatsRequest) returns (GetHexCellStatsResponse);
+  rpc StreamCellUpdates(StreamCellUpdatesRequest) returns (stream CellUpdate);
+}

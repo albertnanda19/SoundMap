@@ -1,0 +1,19 @@
+version: v2
+
+lint:
+  use:
+    - DEFAULT
+    - FIELD_NAMES_LOWER_SNAKE_CASE
+    - ENUM_ZERO_VALUE_SUFFIX
+    - RPC_REQUEST_RESPONSE_UNIQUE
+
+breaking:
+  use:
+    - FILE
+
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+
+modules:
+  - path: .

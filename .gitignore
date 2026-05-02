@@ -1,0 +1,51 @@
+# Generated files
+gen/
+certs/
+
+# Environment files
+*.env
+.env.local
+.env.*.local
+
+# Build artifacts
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage.out
+coverage.html
+*.cover
+
+# Go
+vendor/
+go.work.sum
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+.agents/
+.claude/
+.commandcode/
+.windsurf/
+skills-lock.json

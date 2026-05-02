@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: soundmap-timescaledb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: soundmap
+      POSTGRES_USER: soundmap
+      POSTGRES_PASSWORD: soundmap_secret
+    volumes:
+      - soundmap_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soundmap -d soundmap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soundmap-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: soundmap-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis_secret
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_secret", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soundmap-net
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: soundmap-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: --jetstream --http_port 8222
+    networks:
+      - soundmap-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: soundmap-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - soundmap_prometheus_data:/prometheus
+    networks:
+      - soundmap-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: soundmap-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - soundmap_grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - soundmap-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: soundmap-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - soundmap-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: soundmap-otel-collector
+    volumes:
+      - ./config/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+    networks:
+      - soundmap-net
+
+volumes:
+  soundmap_pgdata:
+  soundmap_prometheus_data:
+  soundmap_grafana_data:
+
+networks:
+  soundmap-net:
+    driver: bridge

@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package alert.v1;
+
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/soundmap/soundmap/gen/go/alert/v1;alertv1";
+
+enum AlertSeverity {
+  ALERT_SEVERITY_UNSPECIFIED = 0;
+  ALERT_SEVERITY_INFO = 1;
+  ALERT_SEVERITY_WARNING = 2;
+  ALERT_SEVERITY_CRITICAL = 3;
+}
+
+message AlertEvent {
+  string alert_id = 1;
+  string threshold_id = 2;
+  string sensor_id = 3;
+  string h3_index = 4;
+  AlertSeverity severity = 5;
+  double current_decibel = 6;
+  double threshold_decibel = 7;
+  string message = 8;
+  google.protobuf.Timestamp fired_at = 9;
+  bool is_heartbeat = 10;
+}
+
+message SubscribeAlertsRequest {
+  string subscriber_id = 1;
+  AlertSeverity min_severity = 2;
+  repeated string h3_indexes = 3;
+}
+
+message Threshold {
+  string threshold_id = 1;
+  string name = 2;
+  string h3_index = 3;
+  double max_decibel = 4;
+  AlertSeverity severity = 5;
+  bool is_active = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message CreateThresholdRequest {
+  string name = 1;
+  string h3_index = 2;
+  double max_decibel = 3;
+  AlertSeverity severity = 4;
+}
+
+message CreateThresholdResponse {
+  Threshold threshold = 1;
+}
+
+message ListThresholdsRequest {
+  common.v1.Pagination page = 1;
+}
+
+message ListThresholdsResponse {
+  repeated Threshold thresholds = 1;
+  common.v1.Pagination pagination = 2;
+}
+
+message AcknowledgeAlertRequest {
+  string alert_id = 1;
+  string acknowledged_by = 2;
+}
+
+message AcknowledgeAlertResponse {
+  string alert_id = 1;
+  google.protobuf.Timestamp acknowledged_at = 2;
+}
+
+service AlertService {
+  rpc SubscribeAlerts(SubscribeAlertsRequest) returns (stream AlertEvent);
+  rpc CreateThreshold(CreateThresholdRequest) returns (CreateThresholdResponse);
+  rpc ListThresholds(ListThresholdsRequest) returns (ListThresholdsResponse);
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+}

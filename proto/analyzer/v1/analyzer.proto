@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package analyzer.v1;
+
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/soundmap/soundmap/gen/go/analyzer/v1;analyzerv1";
+
+service AnalyzerService {
+  rpc AnalyzeStream(stream AnalyzeRequest) returns (stream AnalyzeResponse);
+  rpc AnalyzeBatch(AnalyzeBatchRequest) returns (AnalyzeBatchResponse);
+  rpc GetZoneAnalysis(GetZoneAnalysisRequest) returns (stream GetZoneAnalysisResponse);
+}
+
+message AnalyzeRequest {
+  string reading_id = 1;
+  common.v1.SensorReading sensor_reading = 2;
+  repeated double raw_samples = 3;
+  int32 sample_rate_hz = 4;
+}
+
+message AnalyzeResponse {
+  string reading_id = 1;
+  common.v1.NoiseCategory noise_category = 2;
+  common.v1.HealthRiskLevel health_risk_level = 3;
+  double risk_score = 4;
+  double dominant_frequency_hz = 5;
+  map<string, double> frequency_bands = 6;
+  google.protobuf.Timestamp processed_at = 7;
+}
+
+message AnalyzeBatchRequest {
+  repeated AnalyzeRequest readings = 1;
+  string zone_id = 2;
+}
+
+message AnalyzeBatchResponse {
+  repeated AnalyzeResponse results = 1;
+  double average_risk_score = 2;
+  string zone_id = 3;
+}
+
+message GetZoneAnalysisRequest {
+  string h3_index = 1;
+  int32 h3_resolution = 2;
+  int32 update_interval_seconds = 3;
+}
+
+message GetZoneAnalysisResponse {
+  string h3_index = 1;
+  AnalyzeResponse latest_analysis = 2;
+  int32 sensor_count = 3;
+  google.protobuf.Timestamp streamed_at = 4;
+}
