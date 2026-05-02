@@ -4,13 +4,23 @@ package ingestor.v1;
 
 import "common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 option go_package = "github.com/soundmap/soundmap/gen/go/ingestor/v1;ingestorv1";
 
 service IngestorService {
   rpc IngestReadings(stream IngestReadingsRequest) returns (IngestReadingsResponse);
-  rpc IngestSingleReading(IngestSingleReadingRequest) returns (IngestSingleReadingResponse);
-  rpc GetSensorStatus(GetSensorStatusRequest) returns (GetSensorStatusResponse);
+  rpc IngestSingleReading(IngestSingleReadingRequest) returns (IngestSingleReadingResponse) {
+    option (google.api.http) = {
+      post: "/v1/ingest/single"
+      body: "*"
+    };
+  }
+  rpc GetSensorStatus(GetSensorStatusRequest) returns (GetSensorStatusResponse) {
+    option (google.api.http) = {
+      get: "/v1/ingest/sensor/{sensor_id}"
+    };
+  }
 }
 
 message IngestReadingsRequest {

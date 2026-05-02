@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	alertv1 "github.com/soundmap/soundmap/gen/go/alert/v1"
-	commonv1 "github.com/soundmap/soundmap/gen/go/common/v1"
 	"github.com/soundmap/soundmap/services/alert-engine/internal/repository"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/types/known/timestamppb"

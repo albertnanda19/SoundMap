@@ -1,0 +1,63 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  skip-dirs:
+    - gen
+    - vendor
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - gofmt
+    - goimports
+    - revive
+    - gocritic
+    - noctx
+    - contextcheck
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - (*os.File).Close
+      - (net.Conn).Close
+      - (*grpc.ClientConn).Close
+      - (io.Closer).Close
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: package-comments
+        disabled: true
+      - name: context-as-argument
+        disabled: false
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+      - hugeParam
+      - rangeValCopy
+  goimports:
+    local-prefixes: github.com/soundmap/soundmap
+
+issues:
+  exclude-rules:
+    - path: internal/
+      linters:
+        - revive
+      text: "should have comment"
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+  max-issues-per-linter: 50
+  max-same-issues: 10
+  exclude-use-default: false

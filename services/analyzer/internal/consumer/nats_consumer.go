@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	commonv1 "github.com/soundmap/soundmap/gen/go/common/v1"
@@ -18,13 +19,13 @@ type ReadingConsumer interface {
 
 // NATSConsumer implements ReadingConsumer using NATS JetStream
 type NATSConsumer struct {
-	conn           *nats.Conn
-	js             nats.JetStreamContext
-	subscription   *nats.Subscription
-	streamName     string
-	consumerName   string
-	logger         *slog.Logger
-	subject        string
+	conn         *nats.Conn
+	js           nats.JetStreamContext
+	subscription *nats.Subscription
+	streamName   string
+	consumerName string
+	logger       *slog.Logger
+	subject      string
 }
 
 const (
@@ -35,8 +36,17 @@ const (
 
 // NewNATSConsumer creates a new NATS JetStream consumer
 func NewNATSConsumer(natsURL string, logger *slog.Logger) (*NATSConsumer, error) {
-	// Connect to NATS
-	conn, err := nats.Connect(natsURL)
+	// Connect to NATS with auto-reconnect settings
+	conn, err := nats.Connect(natsURL,
+		nats.MaxReconnects(-1), // Infinite reconnects
+		nats.ReconnectWait(2*time.Second),
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			logger.Error("NATS disconnected", slog.String("error", err.Error()))
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			logger.Info("NATS reconnected", slog.String("url", nc.ConnectedUrl()))
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
 	}

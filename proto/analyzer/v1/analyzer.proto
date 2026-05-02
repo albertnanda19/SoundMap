@@ -52,4 +52,5 @@ message GetZoneAnalysisResponse {
   AnalyzeResponse latest_analysis = 2;
   int32 sensor_count = 3;
   google.protobuf.Timestamp streamed_at = 4;
+  string zone_id = 5;
 }

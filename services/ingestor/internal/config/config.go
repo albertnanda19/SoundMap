@@ -10,12 +10,12 @@ import (
 type Config struct {
 	GRPCPort       int    `envconfig:"GRPC_PORT" default:"50051"`
 	MetricsPort    int    `envconfig:"METRICS_PORT" default:"8081"`
-	DatabaseURL    string `envconfig:"DATABASE_URL" default:"postgres://soundmap:soundmap_secret@localhost:5432/soundmap?sslmode=disable"`
-	RedisAddr      string `envconfig:"REDIS_ADDR" default:"localhost:6379"`
+	DatabaseURL    string `envconfig:"DATABASE_URL" default:"postgres://soundmap:soundmap_secret@timescaledb:5433/soundmap?sslmode=disable"`
+	RedisAddr      string `envconfig:"REDIS_ADDR" default:"redis:6379"`
 	RedisPassword  string `envconfig:"REDIS_PASSWORD" default:"redis_secret"`
-	NATSUrl        string `envconfig:"NATS_URL" default:"nats://localhost:4222"`
+	NATSUrl        string `envconfig:"NATS_URL" default:"nats://nats:4222"`
 	JWTSecretKey   string `envconfig:"JWT_SECRET_KEY" default:"soundmap-dev-secret-key-change-in-prod"`
-	OTLPEndpoint   string `envconfig:"OTLP_ENDPOINT" default:"localhost:4317"`
+	OTLPEndpoint   string `envconfig:"OTLP_ENDPOINT" default:"otel-collector:4317"`
 	ServiceName    string `envconfig:"SERVICE_NAME" default:"ingestor"`
 	ServiceVersion string `envconfig:"SERVICE_VERSION" default:"0.1.0"`
 	LogLevel       string `envconfig:"LOG_LEVEL" default:"info"`

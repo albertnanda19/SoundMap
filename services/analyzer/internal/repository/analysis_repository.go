@@ -18,6 +18,7 @@ type AnalysisRecord struct {
 	HealthRiskLevel    string
 	RiskScore          float64
 	DominantFrequencyHz float64
+	FrequencyBands     map[string]float64
 	AnalyzedAt         time.Time
 	H3Index            string
 	H3Resolution       int32

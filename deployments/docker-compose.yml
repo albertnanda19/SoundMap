@@ -1,11 +1,9 @@
-version: "3.9"
-
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16
     container_name: soundmap-timescaledb
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: soundmap
       POSTGRES_USER: soundmap
@@ -63,8 +61,11 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: true
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SECURITY_ALLOW_EMBEDDING: true
     volumes:
       - soundmap_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
       - prometheus
     networks:
@@ -88,10 +89,200 @@ services:
     volumes:
       - ./config/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "43317:4317"
+      - "43318:4318"
     depends_on:
       - jaeger
+    networks:
+      - soundmap-net
+
+  # Microservices
+  ingestor:
+    image: alpine:3.20
+    container_name: soundmap-ingestor
+    ports:
+      - "50051:50051"
+      - "8081:8081"
+    environment:
+      GRPC_PORT: 50051
+      METRICS_PORT: 8081
+      DATABASE_URL: postgres://soundmap:soundmap_secret@timescaledb:5432/soundmap?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: redis_secret
+      NATS_URL: nats://nats:4222
+      OTLP_ENDPOINT: otel-collector:4317
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+    volumes:
+      - ../build/ingestor:/ingestor
+      - ../migrations:/migrations
+    command: ["/ingestor"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  analyzer:
+    image: alpine:3.20
+    container_name: soundmap-analyzer
+    ports:
+      - "50052:50052"
+      - "8082:8082"
+    environment:
+      GRPC_PORT: 50052
+      METRICS_PORT: 8082
+      DATABASE_URL: postgres://soundmap:soundmap_secret@timescaledb:5432/soundmap?sslmode=disable
+      NATS_URL: nats://nats:4222
+      OTLP_ENDPOINT: otel-collector:4317
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+    volumes:
+      - ../build/analyzer:/analyzer
+    command: ["/analyzer"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  alert-engine:
+    image: alpine:3.20
+    container_name: soundmap-alert-engine
+    ports:
+      - "50053:50053"
+      - "8083:8083"
+    environment:
+      GRPC_PORT: 50053
+      METRICS_PORT: 8083
+      DATABASE_URL: postgres://soundmap:soundmap_secret@timescaledb:5432/soundmap?sslmode=disable
+      NATS_URL: nats://nats:4222
+      OTLP_ENDPOINT: otel-collector:4317
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+    volumes:
+      - ../build/alert-engine:/alert-engine
+    command: ["/alert-engine"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  geo-index:
+    image: alpine:3.20
+    container_name: soundmap-geo-index
+    ports:
+      - "50054:50054"
+      - "8084:8084"
+    environment:
+      GRPC_PORT: 50054
+      METRICS_PORT: 8084
+      DATABASE_URL: postgres://soundmap:soundmap_secret@timescaledb:5432/soundmap?sslmode=disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: redis_secret
+      OTLP_ENDPOINT: otel-collector:4317
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+      CACHE_EXPIRY_SECONDS: 30
+    volumes:
+      - ../build/geo-index:/geo-index
+    command: ["/geo-index"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  report:
+    image: alpine:3.20
+    container_name: soundmap-report
+    ports:
+      - "50055:50055"
+      - "8085:8085"
+    environment:
+      GRPC_PORT: 50055
+      METRICS_PORT: 8085
+      DATABASE_URL: postgres://soundmap:soundmap_secret@timescaledb:5432/soundmap?sslmode=disable
+      OTLP_ENDPOINT: otel-collector:4317
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+    volumes:
+      - ../build/report:/report
+    command: ["/report"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: cmd/gateway/Dockerfile
+    container_name: soundmap-gateway
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+      - "8086:8086"
+    environment:
+      HTTP_PORT: 8080
+      GRPC_PORT: 9090
+      METRICS_PORT: 8086
+      INGESTOR_ADDR: ingestor:50051
+      ANALYZER_ADDR: analyzer:50052
+      ALERT_ADDR: alert-engine:50053
+      GEO_ADDR: geo-index:50054
+      REPORT_ADDR: report:50055
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      OTLP_ENDPOINT: otel-collector:4317
+      CORS_ALLOWED_ORIGINS: "*"
+      LOG_LEVEL: info
+    depends_on:
+      - ingestor
+      - analyzer
+      - alert-engine
+      - geo-index
+      - report
+    restart: unless-stopped
+    networks:
+      - soundmap-net
+
+  agent:
+    build:
+      context: ..
+      dockerfile: cmd/agent/Dockerfile
+    container_name: soundmap-agent
+    environment:
+      INGESTOR_ADDR: ingestor:50051
+      SENSOR_COUNT: 20
+      SEND_INTERVAL_MS: 1000
+      DURATION_SECONDS: 0
+      SCENARIO_NAME: mixed
+      JWT_SECRET_KEY: soundmap-dev-secret-key-change-in-prod
+      LOG_LEVEL: info
+      CITY_CENTER_LAT: 40.7128
+      CITY_CENTER_LNG: -74.0060
+      RADIUS_KM: 5.0
+    depends_on:
+      - ingestor
+    profiles:
+      - agent
     networks:
       - soundmap-net
 

@@ -19,8 +19,8 @@ type ReadingPublisher interface {
 
 // NATSPublisher implements ReadingPublisher using NATS JetStream
 type NATSPublisher struct {
-	conn      *nats.Conn
-	js        nats.JetStreamContext
+	conn       *nats.Conn
+	js         nats.JetStreamContext
 	streamName string
 	subject    string
 }
@@ -32,34 +32,38 @@ const (
 
 // NewNATSPublisher creates a new NATS JetStream publisher
 func NewNATSPublisher(natsURL string) (*NATSPublisher, error) {
-	// Connect to NATS
-	conn, err := nats.Connect(natsURL, nats.Timeout(10*time.Second))
+	// Connect to NATS with auto-reconnect settings
+	conn, err := nats.Connect(natsURL,
+		nats.Timeout(10*time.Second),
+		nats.MaxReconnects(-1), // Infinite reconnects
+		nats.ReconnectWait(2*time.Second),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
 	}
-	
+
 	// Create JetStream context
 	js, err := conn.JetStream()
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
-	
+
 	// Create or update stream
 	_, err = js.AddStream(&nats.StreamConfig{
-		Name:       streamName,
-		Subjects:   []string{subject},
-		Storage:    nats.MemoryStorage,
-		MaxAge:     24 * time.Hour,
-		MaxMsgs:    1_000_000,
-		Retention:  nats.LimitsPolicy,
-		Discard:    nats.DiscardOld,
+		Name:      streamName,
+		Subjects:  []string{subject},
+		Storage:   nats.MemoryStorage,
+		MaxAge:    24 * time.Hour,
+		MaxMsgs:   1_000_000,
+		Retention: nats.LimitsPolicy,
+		Discard:   nats.DiscardOld,
 	})
 	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create stream: %w", err)
 	}
-	
+
 	return &NATSPublisher{
 		conn:       conn,
 		js:         js,
@@ -75,7 +79,7 @@ func (p *NATSPublisher) PublishReading(ctx context.Context, reading *commonv1.Se
 	if err != nil {
 		return fmt.Errorf("failed to marshal reading: %w", err)
 	}
-	
+
 	// Create message with headers
 	msg := &nats.Msg{
 		Subject: p.subject,
@@ -84,13 +88,13 @@ func (p *NATSPublisher) PublishReading(ctx context.Context, reading *commonv1.Se
 	}
 	msg.Header.Set("Content-Type", "application/protobuf")
 	msg.Header.Set("sensor_id", reading.SensorId)
-	
+
 	// Publish with context
 	_, err = p.js.PublishMsg(msg, nats.Context(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to publish reading: %w", err)
 	}
-	
+
 	return nil
 }
 

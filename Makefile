@@ -1,4 +1,4 @@
-.PHONY: proto proto-lint proto-breaking infra-up infra-down infra-logs certs build test test-coverage lint run-ingestor run-analyzer run-alert run-geo run-report run-agent migrate clean
+.PHONY: proto proto-lint proto-breaking infra-up infra-down infra-logs certs build test test-coverage lint run-ingestor run-analyzer run-alert run-geo run-report run-agent run-gateway health smoke-test integration-test migrate clean seed-data
 
 # Proto generation
 proto:
@@ -51,7 +51,11 @@ test-coverage:
 	@echo "Running tests with coverage..."
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
+
+# Data seeding
+seed-data:
+	@echo "Seeding realistic NYC sensor data..."
+	@go run scripts/seed-realistic-data/main.go
 
 # Linting
 lint:
@@ -77,10 +81,34 @@ run-report:
 run-agent:
 	go run ./cmd/agent/...
 
+# Health check
+health:
+	@echo "Checking service health..."
+	@echo "========================================"
+	@echo "Ingestor:    $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/health 2>/dev/null || echo "DOWN")"
+	@echo "Analyzer:    $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/health 2>/dev/null || echo "DOWN")"
+	@echo "Alert Engine:$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8083/health 2>/dev/null || echo "DOWN")"
+	@echo "Geo Index:   $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8084/health 2>/dev/null || echo "DOWN")"
+	@echo "Report:      $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8085/health 2>/dev/null || echo "DOWN")"
+	@echo "Gateway:     $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "DOWN")"
+	@echo "========================================"
+
+# Smoke test - quick end-to-end test
+smoke-test:
+	@echo "Running smoke test..."
+	@echo "Starting agent for 5 seconds..."
+	@cd cmd/agent && timeout 5 go run main.go || true
+	@echo "Smoke test complete"
+
+# Integration tests
+integration-test:
+	@echo "Running integration tests..."
+	cd tests/integration && INTEGRATION_TEST=true go test -v ./...
+
 # Database migrations
 migrate:
 	@echo "Running database migrations..."
-	@echo "Migration not yet implemented"
+	@echo "Migrations are run automatically at service startup"
 
 # Cleanup
 clean:

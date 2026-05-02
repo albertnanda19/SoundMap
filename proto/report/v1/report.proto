@@ -21,7 +21,9 @@ message ZoneStats {
   int64 reading_count = 6;
   int32 alert_count = 7;
   common.v1.NoiseCategory dominant_category = 8;
+  common.v1.HealthRiskLevel health_risk_level = 10;
   string worst_hour = 9;
+  google.protobuf.Timestamp last_updated = 11;
 }
 
 message GenerateZoneReportRequest {
@@ -33,8 +35,15 @@ message GenerateZoneReportRequest {
 message GenerateZoneReportResponse {
   string report_id = 1;
   ZoneStats zone_stats = 2;
+  string zone_id = 5;
   google.protobuf.Timestamp generated_at = 3;
   repeated string recommendations = 4;
+  ZoneStats stats = 6;
+}
+
+message ZoneStatsWithRecommendations {
+  ZoneStats stats = 1;
+  repeated string recommendations = 2;
 }
 
 message GenerateCityReportRequest {
@@ -50,6 +59,7 @@ message GenerateCityReportChunk {
   repeated ZoneStats zone_stats = 3;
   string report_id = 4;
   bool is_last_chunk = 5;
+  string city_name = 6;
 }
 
 service ReportService {

@@ -242,16 +242,16 @@ func (s *IngestorService) GetSensorStatus(ctx context.Context, req *ingestorv1.G
 		return nil, status.Errorf(codes.InvalidArgument, "sensor_id is required")
 	}
 	
-	status, err := s.repo.GetSensorLastReading(ctx, req.SensorId)
+	sensorStatus, err := s.repo.GetSensorLastReading(ctx, req.SensorId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "sensor %s not found", req.SensorId)
 	}
 	
 	return &ingestorv1.GetSensorStatusResponse{
-		SensorId:            status.SensorID,
-		IsActive:            status.LastSeenAt.After(time.Now().Add(-5 * time.Minute)),
-		LastSeenAt:          timestamppb.New(status.LastSeenAt),
-		TotalReadingsToday:  status.TotalReadingsToday,
-		LastDecibelLevel:    status.LastDecibelLevel,
+		SensorId:            sensorStatus.SensorID,
+		IsActive:            sensorStatus.LastSeenAt.After(time.Now().Add(-5 * time.Minute)),
+		LastSeenAt:          timestamppb.New(sensorStatus.LastSeenAt),
+		TotalReadingsToday:  sensorStatus.TotalReadingsToday,
+		LastDecibelLevel:    sensorStatus.LastDecibelLevel,
 	}, nil
 }

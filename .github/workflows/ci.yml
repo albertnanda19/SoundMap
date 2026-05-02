@@ -1,0 +1,194 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+
+env:
+  GO_VERSION: '1.22'
+  BUF_VERSION: '1.32.0'
+  GOLANGCI_LINT_VERSION: 'v1.59'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install buf
+        run: |
+          curl -sSL https://github.com/bufbuild/buf/releases/download/v${{ env.BUF_VERSION }}/buf-Linux-x86_64 -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+          buf --version
+
+      - name: Lint protobuf files
+        run: make proto-lint
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          working-directory: .
+          args: --timeout 5m
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_DB: soundmap
+          POSTGRES_USER: soundmap
+          POSTGRES_PASSWORD: soundmap_secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli -a redis_secret ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      nats:
+        image: nats:2.10-alpine
+        options: --entrypoint sh nats:2.10-alpine -c "nats-server --jetstream"
+        ports:
+          - 4222:4222
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install buf
+        run: |
+          curl -sSL https://github.com/bufbuild/buf/releases/download/v${{ env.BUF_VERSION }}/buf-Linux-x86_64 -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+          buf --version
+
+      - name: Generate protobuf code
+        run: make proto
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgres://soundmap:soundmap_secret@localhost:5432/soundmap?sslmode=disable
+        run: |
+          go run migrations/runner.go
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://soundmap:soundmap_secret@localhost:5432/soundmap?sslmode=disable
+          REDIS_ADDR: localhost:6379
+          REDIS_PASSWORD: redis_secret
+          NATS_URL: nats://localhost:4222
+        run: |
+          go test ./services/ingestor/... -v -timeout 60s
+          go test ./services/analyzer/... -v -timeout 60s
+          go test ./services/alert-engine/... -v -timeout 60s
+          go test ./services/geo-index/... -v -timeout 60s
+          go test ./services/report/... -v -timeout 60s
+          go test ./cmd/gateway/... -v -timeout 60s
+          go test ./cmd/agent/... -v -timeout 60s
+          go test ./pkg/... -v -timeout 60s
+
+      - name: Generate coverage report
+        env:
+          DATABASE_URL: postgres://soundmap:soundmap_secret@localhost:5432/soundmap?sslmode=disable
+          REDIS_ADDR: localhost:6379
+          REDIS_PASSWORD: redis_secret
+          NATS_URL: nats://localhost:4222
+        run: |
+          go test ./services/... ./cmd/... ./pkg/... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          fail_ci_if_error: false
+          verbose: true
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install buf
+        run: |
+          curl -sSL https://github.com/bufbuild/buf/releases/download/v${{ env.BUF_VERSION }}/buf-Linux-x86_64 -o /usr/local/bin/buf
+          chmod +x /usr/local/bin/buf
+          buf --version
+
+      - name: Generate protobuf code
+        run: make proto
+
+      - name: Build services
+        run: |
+          go build -o /dev/null ./services/ingestor/cmd/
+          go build -o /dev/null ./services/analyzer/cmd/
+          go build -o /dev/null ./services/alert-engine/cmd/
+          go build -o /dev/null ./services/geo-index/cmd/
+          go build -o /dev/null ./services/report/cmd/
+          go build -o /dev/null ./cmd/gateway/
+          go build -o /dev/null ./cmd/agent/
+          echo "All builds successful ✓"
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          docker build -f services/ingestor/Dockerfile -t soundmap/ingestor:${{ github.sha }} .
+          docker build -f services/analyzer/Dockerfile -t soundmap/analyzer:${{ github.sha }} .
+          docker build -f services/alert-engine/Dockerfile -t soundmap/alert-engine:${{ github.sha }} .
+          docker build -f services/geo-index/Dockerfile -t soundmap/geo-index:${{ github.sha }} .
+          docker build -f services/report/Dockerfile -t soundmap/report:${{ github.sha }} .
+          docker build -f cmd/gateway/Dockerfile -t soundmap/gateway:${{ github.sha }} .
+          docker build -f cmd/agent/Dockerfile -t soundmap/agent:${{ github.sha }} .
+          echo "Docker builds successful ✓"

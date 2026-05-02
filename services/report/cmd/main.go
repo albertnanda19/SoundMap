@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -49,7 +50,7 @@ func main() {
 	var tracer trace.Tracer
 	var meter metric.Meter
 	tracer = trace.NewNoopTracerProvider().Tracer("report")
-	meter = metric.NewNoopMeterProvider().Meter("report")
+	meter = otel.Meter("report")
 	_ = tracer
 
 	ctx, cancel := context.WithCancel(context.Background())

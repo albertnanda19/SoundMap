@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sort"
 	"time"
@@ -10,6 +9,7 @@ import (
 	geov1 "github.com/soundmap/soundmap/gen/go/geo/v1"
 	"github.com/soundmap/soundmap/services/geo-index/internal/cache"
 	"github.com/soundmap/soundmap/services/geo-index/internal/repository"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -107,10 +107,10 @@ func (s *GeoService) QueryHotspots(ctx context.Context, req *geov1.QueryHotspots
 	if len(h3Indexes) == 0 {
 		return &geov1.QueryHotspotsResponse{
 			Cells:         []*geov1.HexCell{},
-			Center:        req.Center,
-			RadiusKm:      req.RadiusKm,
-			QueriedAt:     timestamppb.Now(),
-			QueryTimeMs:   float32(time.Since(startTime).Milliseconds()),
+			Center:       req.Center,
+			RadiusKm:     req.RadiusKm,
+			QueriedAt:    timestamppb.Now().GetSeconds(),
+			QueryTimeMs:  int64(time.Since(startTime).Milliseconds()),
 		}, nil
 	}
 
@@ -192,14 +192,14 @@ func (s *GeoService) QueryHotspots(ctx context.Context, req *geov1.QueryHotspots
 	// Record metrics
 	duration := float64(time.Since(startTime).Milliseconds())
 	s.queryDurationMs.Record(ctx, duration)
-	s.queriesTotal.Add(ctx, 1, metric.WithAttributes(metric.StringAttribute("method", "QueryHotspots")))
+	s.queriesTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("method", "QueryHotspots")))
 
 	return &geov1.QueryHotspotsResponse{
 		Cells:       filteredCells,
-		Center:      req.Center,
-		RadiusKm:    req.RadiusKm,
-		QueriedAt:   timestamppb.Now(),
-		QueryTimeMs: float32(duration),
+		Center:     req.Center,
+		RadiusKm:   req.RadiusKm,
+		QueriedAt:  timestamppb.Now().GetSeconds(),
+		QueryTimeMs: int64(duration),
 	}, nil
 }
 
@@ -238,6 +238,7 @@ func (s *GeoService) GetHexCellStats(ctx context.Context, req *geov1.GetHexCellS
 		s.logger.Error("DB query error", slog.String("error", err.Error()))
 		return nil, status.Errorf(codes.Internal, "failed to get cell stats: %v", err)
 	}
+	_ = hourlyBreakdown // Use if needed for response
 
 	// Cache the result for next time
 	go func() {
@@ -251,12 +252,12 @@ func (s *GeoService) GetHexCellStats(ctx context.Context, req *geov1.GetHexCellS
 	// Record metrics
 	duration := float64(time.Since(startTime).Milliseconds())
 	s.queryDurationMs.Record(ctx, duration)
-	s.queriesTotal.Add(ctx, 1, metric.WithAttributes(metric.StringAttribute("method", "GetHexCellStats")))
+	s.queriesTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("method", "GetHexCellStats")))
 
 	return &geov1.GetHexCellStatsResponse{
-		Cell:            cell,
-		HourlyBreakdown: hourlyBreakdown,
-		QueryTimeMs:     float32(duration),
+		Cell:        cell,
+		H3Index:     req.H3Index,
+		QueryTimeMs: int64(duration),
 	}, nil
 }
 

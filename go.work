@@ -1,12 +1,13 @@
-go 1.22
+go 1.25.0
 
 use (
 	.
-	./services/ingestor
-	./services/analyzer
-	./services/alert-engine
-	./services/geo-index
-	./services/report
 	./cmd/agent
 	./cmd/gateway
+	./services/alert-engine
+	./services/analyzer
+	./services/geo-index
+	./services/ingestor
+	./services/report
+	./tests/e2e
 )

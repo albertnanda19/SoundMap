@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -50,7 +51,7 @@ func main() {
 	var tracer trace.Tracer
 	var meter metric.Meter
 	tracer = trace.NewNoopTracerProvider().Tracer("ingestor")
-	meter = metric.NewNoopMeterProvider().Meter("ingestor")
+	meter = otel.Meter("ingestor")
 	_ = tracer
 
 	ctx := context.Background()
@@ -70,9 +71,12 @@ func main() {
 	}
 
 	// Create repository
-	readingRepo := &repository.PostgresReadingRepository{}
-	// Note: In real implementation, we'd properly initialize this
-	_ = readingRepo
+	readingRepo, err := repository.NewPostgresReadingRepository(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("failed to create reading repository", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer readingRepo.Close()
 
 	// Create NATS publisher
 	natsPub, err := publisher.NewNATSPublisher(cfg.NATSUrl)

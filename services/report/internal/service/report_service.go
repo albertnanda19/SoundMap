@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	commonv1 "github.com/soundmap/soundmap/gen/go/common/v1"
 	reportv1 "github.com/soundmap/soundmap/gen/go/report/v1"
 	"github.com/soundmap/soundmap/services/report/internal/repository"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -87,7 +87,7 @@ func (s *ReportService) GenerateZoneReport(ctx context.Context, req *reportv1.Ge
 	// Record metrics
 	duration := float64(time.Since(startTime).Milliseconds())
 	s.generationDurationMs.Record(ctx, duration)
-	s.reportsGeneratedTotal.Add(ctx, 1, metric.WithAttributes(metric.StringAttribute("type", "zone")))
+	s.reportsGeneratedTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("type", "zone")))
 
 	s.logger.Info("zone report generated",
 		slog.String("report_id", stats.H3Index),
@@ -127,7 +127,7 @@ func (s *ReportService) GenerateCityReport(req *reportv1.GenerateCityReportReque
 
 	s.logger.Info("generating city report",
 		slog.String("city", req.CityName),
-		slog.Int64("top_n", req.TopNHotspots))
+		slog.Int("top_n", int(req.TopNHotspots)))
 
 	// Query zone stats for the city
 	statsList, err := s.repo.GetCityZoneStats(ctx, startTimeReq, endTimeReq, int(req.Resolution), int(req.TopNHotspots))
@@ -165,7 +165,7 @@ func (s *ReportService) GenerateCityReport(req *reportv1.GenerateCityReportReque
 		chunk := &reportv1.GenerateCityReportChunk{
 			ChunkIndex: int32(chunkIdx + 1),
 			TotalChunks: int32(totalChunks),
-			ZoneStats:   zoneStatsWithRecommendations,
+			ZoneStats:   statsList,
 			ReportId:    reportID,
 			CityName:    req.CityName,
 			IsLastChunk: chunkIdx == totalChunks-1,
@@ -191,7 +191,7 @@ func (s *ReportService) GenerateCityReport(req *reportv1.GenerateCityReportReque
 	// Record metrics
 	duration := float64(time.Since(startTime).Milliseconds())
 	s.generationDurationMs.Record(ctx, duration)
-	s.reportsGeneratedTotal.Add(ctx, 1, metric.WithAttributes(metric.StringAttribute("type", "city")))
+	s.reportsGeneratedTotal.Add(ctx, 1, metric.WithAttributes(attribute.String("type", "city")))
 
 	s.logger.Info("city report generated",
 		slog.String("report_id", reportID),

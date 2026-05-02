@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	geov1 "github.com/soundmap/soundmap/gen/go/geo/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // GeoRepository defines the interface for geospatial data storage
@@ -46,17 +47,19 @@ func (r *PostgresGeoRepository) GetHexCellStats(ctx context.Context, h3Index str
 
 	var cell geov1.HexCell
 	var dominantCategory string
+	var lastUpdated time.Time
 	err := r.pool.QueryRow(ctx, statsQuery, h3Index, timeRangeHours).Scan(
 		&cell.AvgDecibel,
 		&cell.MaxDecibel,
 		&cell.MinDecibel,
 		&cell.ReadingCount,
 		&dominantCategory,
-		&cell.LastUpdated,
+		&lastUpdated,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GeoRepository.GetHexCellStats: stats query error: %w", err)
 	}
+	cell.LastUpdated = timestamppb.New(lastUpdated)
 
 	cell.H3Index = h3Index
 
@@ -131,6 +134,7 @@ func (r *PostgresGeoRepository) GetHotspotsInCells(ctx context.Context, h3Indexe
 	for rows.Next() {
 		var cell geov1.HexCell
 		var dominantCategory string
+		var lastUpdated time.Time
 
 		err := rows.Scan(
 			&cell.H3Index,
@@ -139,11 +143,12 @@ func (r *PostgresGeoRepository) GetHotspotsInCells(ctx context.Context, h3Indexe
 			&cell.MinDecibel,
 			&cell.ReadingCount,
 			&dominantCategory,
-			&cell.LastUpdated,
+			&lastUpdated,
 		)
 		if err != nil {
 			continue
 		}
+		cell.LastUpdated = timestamppb.New(lastUpdated)
 		cells = append(cells, &cell)
 	}
 
@@ -187,6 +192,7 @@ func (r *PostgresGeoRepository) GetLatestCellUpdate(ctx context.Context, h3Index
 	for rows.Next() {
 		var cell geov1.HexCell
 		var dominantCategory string
+		var lastUpdated time.Time
 
 		err := rows.Scan(
 			&cell.H3Index,
@@ -195,11 +201,12 @@ func (r *PostgresGeoRepository) GetLatestCellUpdate(ctx context.Context, h3Index
 			&cell.MinDecibel,
 			&cell.ReadingCount,
 			&dominantCategory,
-			&cell.LastUpdated,
+			&lastUpdated,
 		)
 		if err != nil {
 			continue
 		}
+		cell.LastUpdated = timestamppb.New(lastUpdated)
 		cells = append(cells, &cell)
 	}
 
