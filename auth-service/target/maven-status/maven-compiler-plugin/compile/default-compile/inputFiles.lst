@@ -1,0 +1,16 @@
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/mapper/UserCredentialMapper.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/dto/response/AuthResponse.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/config/RedisConfig.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/dto/response/TokenValidationResponse.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/dto/request/RefreshTokenRequest.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/repository/UserCredentialRepository.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/dto/request/LoginRequest.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/service/impl/AuthServiceImpl.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/config/OpenApiConfig.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/dto/request/RegisterRequest.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/util/JwtUtil.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/AuthServiceApplication.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/entity/UserCredential.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/controller/AuthController.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/service/AuthService.java
+/Users/albert-dibimbing/Documents/Coding Repo/sound-map/auth-service/src/main/java/com/smartgig/auth/config/SecurityConfig.java
